@@ -6,10 +6,14 @@
 
 import {
     AttributeMap,
+    Env,
     getFeatureId,
     getPropertyValue,
     IndexedTechniqueParams,
+    isTextTechnique,
+    LineMarkerTechnique,
     MapEnv,
+    PoiTechnique,
     TextTechnique
 } from "@here/harp-datasource-protocol";
 import {
@@ -44,13 +48,20 @@ export class TextElementBuilder {
     private m_reserveSpace?: boolean;
     private m_renderStyle?: TextRenderStyle;
     private m_layoutStype?: TextLayoutStyle;
-    private m_technique?: TextTechnique & IndexedTechniqueParams;
+    private m_technique?: (PoiTechnique | LineMarkerTechnique | TextTechnique) &
+        IndexedTechniqueParams;
+
     private m_xOffset?: number;
     private m_yOffset?: number;
 
-    constructor(private readonly env: MapEnv, private readonly styleCache: TileTextStyleCache) {}
+    constructor(
+        private readonly env: MapEnv | Env,
+        private readonly styleCache: TileTextStyleCache
+    ) {}
 
-    withTechnique(technique: TextTechnique & IndexedTechniqueParams): this {
+    withTechnique(
+        technique: (PoiTechnique | LineMarkerTechnique | TextTechnique) & IndexedTechniqueParams
+    ): this {
         this.m_technique = technique;
 
         // Make sorting stable.
@@ -70,8 +81,13 @@ export class TextElementBuilder {
         this.m_maxZoomLevel = getPropertyValue(technique.maxZoomLevel, this.env) ?? undefined;
 
         this.m_distanceScale = technique.distanceScale ?? DEFAULT_TEXT_DISTANCE_SCALE;
-        this.m_mayOverlap = technique.mayOverlap === true;
-        this.m_reserveSpace = technique.reserveSpace !== false;
+        if (isTextTechnique(technique)) {
+            this.m_mayOverlap = technique.mayOverlap === true;
+            this.m_reserveSpace = technique.reserveSpace !== false;
+        } else {
+            this.m_mayOverlap = technique.textMayOverlap === true;
+            this.m_reserveSpace = technique.textReserveSpace !== false;
+        }
         this.m_renderStyle = this.styleCache.getRenderStyle(technique);
         this.m_layoutStype = this.styleCache.getLayoutStyle(technique);
         this.m_xOffset = getPropertyValue(technique.xOffset, this.env);
